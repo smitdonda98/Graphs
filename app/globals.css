@@ -1,15 +1,18 @@
 .highcharts-credits {
     display: none;
 }
-/* 
-table>tbody>tr>td:nth-child(1) {
-    position: fixed !important;
-    width: 200px !important;
-    background-color: white;
-    z-index: 1;
+
+.highcharts-container {
+  overflow: visible !important;  
 }
 
+.highcharts-xaxis-labels {
+  overflow: visible !important;
+  clip: auto !important;  /* Prevents Highcharts from cutting off labels */
+}
 
-table>tbody>tr {
-    position: relative;
-} */
+.highcharts-axis-labels span {
+  overflow: visible !important;
+  position: relative;
+  z-index: 9999 !important;  /* Ensures labels stay above the chart */
+}

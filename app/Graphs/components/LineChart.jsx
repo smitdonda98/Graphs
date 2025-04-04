@@ -2,8 +2,9 @@
 import Highcharts from "highcharts";
 import HighchartsReact from "highcharts-react-official";
 import { useState, useRef, useEffect } from "react";
-import { FaExpandAlt } from "react-icons/fa";
-import { Sparklines, SparklinesCurve, SparklinesLine } from "react-sparklines";
+import { FaExpandAlt, FaDownload } from "react-icons/fa"; // Added FaDownload
+import { Sparklines, SparklinesCurve } from "react-sparklines";
+import * as XLSX from "xlsx"; // Import xlsx for Excel export
 
 // Function to generate random data within a range
 const generateRandomData = (length, min, max) => {
@@ -91,6 +92,8 @@ const LineChart = () => {
     const [showDataLabels, setShowDataLabels] = useState(false);
     const [showTable, setShowTable] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
+    const [toggle, setToggle] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
     const [visibleSeries, setVisibleSeries] = useState({
         acos: true,
         tacos: true,
@@ -115,7 +118,7 @@ const LineChart = () => {
             width: null,
         },
         title: {
-            text: "Charts",
+            text: "",
         },
         xAxis: {
             categories: currentData.dates,
@@ -124,21 +127,25 @@ const LineChart = () => {
             },
         },
         yAxis: [
-            { title: { text: "ACOS" }, labels: { format: "{value}%" }, min: 0, max: 30, visible: visibleSeries.acos },
-            { title: { text: "TACOS" }, labels: { format: "{value}%" }, min: 0, max: 30, visible: visibleSeries.tacos, opposite: true },
+            { title: { text: "ACOS" }, labels: { format: "{value}%" }, min: 0, max: 100, visible: visibleSeries.acos },
+            { title: { text: "TACOS" }, labels: { format: "{value}%" }, min: 0, max: 100, visible: visibleSeries.tacos, opposite: true },
             { title: { text: "ROAS" }, labels: { format: "{value}" }, min: 0, max: 5, visible: visibleSeries.roas },
             { title: { text: "Impressions" }, min: 0, max: view === "Daily" ? 60000 : 300000, visible: visibleSeries.impressions, opposite: true },
             { title: { text: "Spend ($)" }, min: 0, max: view === "Daily" ? 3000 : 15000, visible: visibleSeries.spend },
             { title: { text: "Clicked" }, min: 0, max: view === "Daily" ? 1500 : 7500, visible: visibleSeries.clicked, opposite: true },
             { title: { text: "Avg CPC ($)" }, labels: { format: "{value}" }, min: 0, max: 10, visible: visibleSeries.avgCpc },
-            { title: { text: "Convo Rate (%)" }, labels: { format: "{value}%" }, min: 0, max: 15, visible: visibleSeries.convoRate, opposite: true },
+            { title: { text: "Convo Rate (%)" }, labels: { format: "{value}%" }, min: 0, max: 100, visible: visibleSeries.convoRate, opposite: true },
             { title: { text: "Conversions" }, min: 0, max: view === "Daily" ? 100 : 500, visible: visibleSeries.conversation },
-            { title: { text: "CTR (%)" }, labels: { format: "{value}%" }, min: 0, max: 10, visible: visibleSeries.ctr, opposite: true },
+            { title: { text: "CTR (%)" }, labels: { format: "{value}%" }, min: 0, max: 100, visible: visibleSeries.ctr, opposite: true },
             { title: { text: "Total Units" }, min: 0, max: view === "Daily" ? 150 : 750, visible: visibleSeries.totalUnits },
             { title: { text: "Total Revenue ($)" }, min: 0, max: view === "Daily" ? 6000 : 30000, visible: visibleSeries.totalRevenue, opposite: true },
         ],
         tooltip: {
             shared: true,
+            outside: true,
+            style: {
+                zIndex: 9999,
+            },
         },
         legend: {
             layout: "horizontal",
@@ -208,12 +215,51 @@ const LineChart = () => {
         ],
     };
 
-    // Update the chart when view, showDataLabels, visibleSeries, or isExpanded changes
+    // Function to export data to Excel
+    const exportToExcel = () => {
+        const seriesMetadata = [
+            { name: "Date", key: "dates" },
+            { name: "ACOS", key: "acos" },
+            { name: "TACOS", key: "tacos" },
+            { name: "ROAS", key: "roas" },
+            { name: "Impressions", key: "impressions" },
+            { name: "Spend", key: "spend" },
+            { name: "Clicked", key: "clicked" },
+            { name: "Avg CPC", key: "avgCpc" },
+            { name: "Convo Rate", key: "convoRate" },
+            { name: "Conversions", key: "conversation" },
+            { name: "CTR", key: "ctr" },
+            { name: "Total Units", key: "totalUnits" },
+            { name: "Total Revenue", key: "totalRevenue" },
+        ];
+
+        // Prepare data for Excel
+        const excelData = [];
+        const headers = seriesMetadata.map((series) => series.name);
+        excelData.push(headers);
+
+        // Add rows based on the current data
+        const rowCount = currentData.dates.length;
+        for (let i = 0; i < rowCount; i++) {
+            const row = seriesMetadata.map((series) => currentData[series.key][i]);
+            excelData.push(row);
+        }
+
+        // Create a worksheet
+        const ws = XLSX.utils.aoa_to_sheet(excelData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, view);
+
+        // Export the Excel file
+        XLSX.writeFile(wb, `${view}_Chart_Data_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    };
+
     useEffect(() => {
         if (chartRef.current) {
             const chart = chartRef.current.chart;
 
             chart.xAxis[0].update({ categories: currentData.dates });
+
             chart.series[0].update({ data: currentData.acos, visible: visibleSeries.acos }, false);
             chart.series[1].update({ data: currentData.tacos, visible: visibleSeries.tacos }, false);
             chart.series[2].update({ data: currentData.roas, visible: visibleSeries.roas }, false);
@@ -252,6 +298,37 @@ const LineChart = () => {
                             },
                         },
                     },
+                    xAxis: {
+                        labels: {
+                            useHTML: true,
+                            overflow: 'allow',
+                            formatter: function () {
+                                const notifications = 2;
+                                return `
+                                    <div style="position: relative; display: inline-block;">
+                                        ${toggle
+                                        ? `<span style="
+                                                position: absolute;
+                                                top: -40px;
+                                                left: 50%;
+                                                transform: translateX(-50%);
+                                                background-color: #4573d2;
+                                                color: white;
+                                                font-size: 12px;
+                                                font-weight: bold;
+                                                border-radius: 100%;
+                                                padding: 3px 7px;
+                                            ">
+                                                ${notifications}
+                                            </span>`
+                                        : ""
+                                    }
+                                        ${this.value}
+                                    </div>
+                                `;
+                            }
+                        }
+                    }
                 },
                 true,
                 true,
@@ -261,10 +338,9 @@ const LineChart = () => {
                 }
             );
         }
-    }, [view, showDataLabels, visibleSeries, isExpanded]);
+    }, [currentData, visibleSeries, showDataLabels, isExpanded, toggle]);
 
     const DataTable = () => {
-        // Define series metadata for the table and legend
         const seriesMetadata = [
             { name: "Spend", key: "spend", color: "#FF4500", format: (val) => `$${val}` },
             { name: "Conversions", key: "conversation", color: "#8A2BE2", format: (val) => val },
@@ -280,7 +356,6 @@ const LineChart = () => {
             { name: "Total Revenue", key: "totalRevenue", color: "#DC143C", format: (val) => `$${val}` },
         ];
 
-        // Function to handle toggling series visibility
         const toggleSeries = (key) => {
             setVisibleSeries((prev) => ({
                 ...prev,
@@ -290,7 +365,6 @@ const LineChart = () => {
 
         return (
             <div style={{ marginTop: "20px" }}>
-                {/* Table */}
                 <div style={{ overflowX: "auto" }}>
                     <div style={{
                         width: "100%",
@@ -302,7 +376,7 @@ const LineChart = () => {
                             width: "100%",
                             minWidth: "600px",
                             fontFamily: "Arial, sans-serif",
-                            whiteSpace: "nowrap" // Prevents text wrapping
+                            whiteSpace: "nowrap"
                         }}>
                             <thead>
                                 <tr>
@@ -341,7 +415,7 @@ const LineChart = () => {
                             </thead>
                             <tbody>
                                 {seriesMetadata.map((series) => {
-                                    if (!visibleSeries[series.key]) return null; // Skip if series is not visible
+                                    if (!visibleSeries[series.key]) return null;
                                     return (
                                         <tr key={series.name}>
                                             <td
@@ -386,10 +460,7 @@ const LineChart = () => {
                             </tbody>
                         </table>
                     </div>
-
                 </div>
-
-                {/* Legend for toggling rows (at the bottom) */}
                 <div
                     style={{
                         display: "flex",
@@ -451,61 +522,186 @@ const LineChart = () => {
 
     return (
         <div>
-            <div style={{ marginBottom: "10px", display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-                <select value={view} onChange={(e) => setView(e.target.value)}>
-                    <option value="Daily">Daily</option>
-                    <option value="Weekly">Weekly</option>
-                </select>
-                <button
-                    onClick={() => setShowDataLabels(!showDataLabels)}
-                    style={{
-                        padding: "5px 10px",
-                        backgroundColor: showDataLabels ? "#ccc" : "#007bff",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                    }}
-                >
-                    {showDataLabels ? "Hide Data Labels" : "Show Data Labels"}
-                </button>
-                <button
-                    onClick={() => setShowTable(!showTable)}
-                    style={{
-                        padding: "5px 10px",
-                        backgroundColor: showTable ? "#ccc" : "#28a745",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                    }}
-                >
-                    {showTable ? "Show Chart" : "View in Table"}
-                </button>
-                <button
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    style={{
-                        padding: "5px",
-                        backgroundColor: isExpanded ? "#ccc" : "#ff5722",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "4px",
-                        cursor: "pointer",
+            <div style={{ marginBottom: "10px", display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", padding: "10px 35px" }}>
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                    <p style={{ fontSize: "16px", fontWeight: "bold", color: "#333", margin: 0 }}>Charts</p>
+                </div>
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                    <p
+                        onClick={() => setShowTable(!showTable)}
+                        onMouseEnter={() => setIsHovered(true)}
+                        onMouseLeave={() => setIsHovered(false)}
+                        style={{
+                            padding: "5px 10px",
+                            color: "#1a73e8",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            display: "inline-block",
+                            textDecoration: isHovered ? "underline" : "none",
+                            textUnderlineOffset: "3px",
+                            margin: 0,
+                            fontSize: "14px",
+                            fontWeight: 500,
+                            transition: "text-decoration 0.2s ease"
+                        }}
+                    >
+                        {showTable ? "Show Chart" : "View as table"}
+                    </p>
+                    <select
+                        value={view}
+                        onChange={(e) => setView(e.target.value)}
+                        style={{
+                            padding: "5px 20px 5px 10px",
+                            fontSize: "14px",
+                            color: "#333",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            backgroundColor: "#fff",
+                            cursor: "pointer",
+                            appearance: "none",
+                            backgroundImage: "url('data:image/svg+xml;utf8,<svg fill=\"black\" height=\"24\" viewBox=\"0 0 24 24\" width=\"24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M7 10l5 5 5-5z\"/></svg>')",
+                            backgroundRepeat: "no-repeat",
+                            backgroundPosition: "right 5px center",
+                            backgroundSize: "16px",
+                        }}
+                    >
+                        <option value="Daily">Daily</option>
+                        <option value="Weekly">Weekly</option>
+                    </select>
+                    <div style={{
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
-                    }}
-                    title={isExpanded ? "Shrink Chart" : "Expand Chart"}
-                >
-                    <FaExpandAlt size={20} />
-                </button>
+                        gap: "8px",
+                        fontFamily: "Arial, sans-serif"
+                    }}>
+                        <button
+                            onClick={() => setShowDataLabels(!showDataLabels)}
+                            style={{
+                                position: "relative",
+                                width: "50px",
+                                height: "26px",
+                                borderRadius: "13px",
+                                border: "1px solid #ccc",
+                                backgroundColor: showDataLabels ? "#868a8d" : "#fff",
+                                cursor: "pointer",
+                                padding: "0",
+                                outline: "none",
+                                transition: "all 0.3s ease",
+                                boxShadow: "inset 0 1px 3px rgba(0,0,0,0.1)"
+                            }}
+                        >
+                            <div style={{
+                                position: "absolute",
+                                top: "3px",
+                                left: showDataLabels ? "calc(100% - 23px)" : "3px",
+                                width: "20px",
+                                height: "20px",
+                                borderRadius: "50%",
+                                backgroundColor: showDataLabels ? "#fff" : "#ccc",
+                                transition: "all 0.3s ease",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
+                            }} />
+                        </button>
+                        <span style={{
+                            fontSize: "14px",
+                            fontWeight: "bold",
+                            color: "#333",
+                            minWidth: "30px",
+                            textAlign: "center"
+                        }}>
+                            Data Labels
+                        </span>
+                    </div>
+                    <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        fontFamily: "Arial, sans-serif"
+                    }}>
+                        <button
+                            onClick={() => setToggle(prev => !prev)}
+                            style={{
+                                position: "relative",
+                                width: "50px",
+                                height: "26px",
+                                borderRadius: "13px",
+                                border: "1px solid #ccc",
+                                backgroundColor: toggle ? "#868a8d" : "#fff",
+                                cursor: "pointer",
+                                padding: "0",
+                                outline: "none",
+                                transition: "all 0.3s ease",
+                                boxShadow: "inset 0 1px 3px rgba(0,0,0,0.1)"
+                            }}
+                        >
+                            <div style={{
+                                position: "absolute",
+                                top: "3px",
+                                left: toggle ? "calc(100% - 23px)" : "3px",
+                                width: "20px",
+                                height: "20px",
+                                borderRadius: "50%",
+                                backgroundColor: toggle ? "#fff" : "#ccc",
+                                transition: "all 0.3s ease",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
+                            }} />
+                        </button>
+                        <span style={{
+                            fontSize: "14px",
+                            fontWeight: "bold",
+                            color: "#333",
+                            minWidth: "30px",
+                            textAlign: "center"
+                        }}>
+                            View Changes
+                        </span>
+                        <button
+                            onClick={() => setIsExpanded(!isExpanded)}
+                            style={{
+                                padding: "5px",
+                                backgroundColor: "#fff",
+                                color: "#333",
+                                border: "1px solid #ccc",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                            title={isExpanded ? "Shrink Chart" : "Expand Chart"}
+                        >
+                            <FaExpandAlt size={16} />
+                        </button>
+                        {/* Download Button */}
+                        <button
+                            onClick={exportToExcel}
+                            style={{
+                                padding: "5px",
+                                backgroundColor: "#fff",
+                                color: "#333",
+                                border: "1px solid #ccc",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                            title="Download as Excel"
+                        >
+                            <FaDownload size={16} />
+                        </button>
+                    </div>
+                </div>
             </div>
-            {showTable ? (
-                <DataTable />
-            ) : (
-                <HighchartsReact highcharts={Highcharts} options={options} ref={chartRef} />
-            )}
-        </div>
+            {
+                showTable ? (
+                    <DataTable />
+                ) : (
+                    <HighchartsReact highcharts={Highcharts} options={options} ref={chartRef} />
+                )
+            }
+        </div >
     );
 };
 
