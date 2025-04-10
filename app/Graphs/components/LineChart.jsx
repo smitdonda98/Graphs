@@ -2,9 +2,9 @@
 import Highcharts from "highcharts";
 import HighchartsReact from "highcharts-react-official";
 import { useState, useRef, useEffect } from "react";
-import { FaExpandAlt, FaDownload } from "react-icons/fa"; // Added FaDownload
+import { FaExpandAlt, FaDownload } from "react-icons/fa";
 import { Sparklines, SparklinesCurve } from "react-sparklines";
-import * as XLSX from "xlsx"; // Import xlsx for Excel export
+import * as XLSX from "xlsx";
 
 // Function to generate random data within a range
 const generateRandomData = (length, min, max) => {
@@ -233,24 +233,19 @@ const LineChart = () => {
             { name: "Total Revenue", key: "totalRevenue" },
         ];
 
-        // Prepare data for Excel
         const excelData = [];
         const headers = seriesMetadata.map((series) => series.name);
         excelData.push(headers);
 
-        // Add rows based on the current data
         const rowCount = currentData.dates.length;
         for (let i = 0; i < rowCount; i++) {
             const row = seriesMetadata.map((series) => currentData[series.key][i]);
             excelData.push(row);
         }
 
-        // Create a worksheet
         const ws = XLSX.utils.aoa_to_sheet(excelData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, view);
-
-        // Export the Excel file
         XLSX.writeFile(wb, `${view}_Chart_Data_${new Date().toISOString().slice(0, 10)}.xlsx`);
     };
 
@@ -258,8 +253,10 @@ const LineChart = () => {
         if (chartRef.current) {
             const chart = chartRef.current.chart;
 
+            // Update xAxis categories and series data
             chart.xAxis[0].update({ categories: currentData.dates });
 
+            // Update series data
             chart.series[0].update({ data: currentData.acos, visible: visibleSeries.acos }, false);
             chart.series[1].update({ data: currentData.tacos, visible: visibleSeries.tacos }, false);
             chart.series[2].update({ data: currentData.roas, visible: visibleSeries.roas }, false);
@@ -273,6 +270,7 @@ const LineChart = () => {
             chart.series[10].update({ data: currentData.totalUnits, visible: visibleSeries.totalUnits }, false);
             chart.series[11].update({ data: currentData.totalRevenue, visible: visibleSeries.totalRevenue }, false);
 
+            // Update yAxis visibility
             chart.yAxis[0].update({ visible: visibleSeries.acos }, false);
             chart.yAxis[1].update({ visible: visibleSeries.tacos }, false);
             chart.yAxis[2].update({ visible: visibleSeries.roas }, false);
@@ -298,37 +296,96 @@ const LineChart = () => {
                             },
                         },
                     },
+                    tooltip: {
+                        shared: true,
+                        outside: true,
+                        style: {
+                            zIndex: 9999,
+                        },
+                    },
                     xAxis: {
                         labels: {
                             useHTML: true,
-                            overflow: 'allow',
+                            overflow: "allow",
                             formatter: function () {
-                                const notifications = 2;
+                                const notifications = 2; // Example condition for showing notifications
+                                const index = currentData.dates.indexOf(this.value);
+                                const tooltipData = index !== -1 ? currentData.spend[index] : "N/A"; // Example data
+                                const exampleLink = `https://example.com/date=${encodeURIComponent(this.value)}`; // Example clickable link
+
                                 return `
-                                    <div style="position: relative; display: inline-block;">
+                                    <div style="position: relative; display: inline-block; text-align: center;">
                                         ${toggle
-                                        ? `<span style="
+                                        ? `
+                                            <div class="notification-wrapper" style="
                                                 position: absolute;
                                                 top: -40px;
                                                 left: 50%;
                                                 transform: translateX(-50%);
-                                                background-color: #4573d2;
-                                                color: white;
-                                                font-size: 12px;
-                                                font-weight: bold;
-                                                border-radius: 100%;
-                                                padding: 3px 7px;
-                                            ">
-                                                ${notifications}
-                                            </span>`
-                                        : ""
-                                    }
+                                                display: inline-block;
+                                                padding-bottom: 20px;
+                                                z-index: 10;">
+                                                <span class="notification-circle" style="
+                                                    background-color: #4573d2;
+                                                    color: white;
+                                                    font-size: 12px;
+                                                    font-weight: bold;
+                                                    border-radius: 100%;
+                                                    padding: 3px 7px;
+                                                    cursor: pointer;
+                                                    display: inline-block;
+                                                    position: relative;
+                                                    z-index: 11;">
+                                                    ${notifications}
+                                                </span>
+                                                <span class="notification-tooltip" style="
+                                                    position: absolute;
+                                                    top: -40px;
+                                                    left: 50%;
+                                                    transform: translateX(-10%);
+                                                    background-color: #333;
+                                                    color: white;
+                                                    font-size: 12px;
+                                                    padding: 2px 10px;
+                                                    border-radius: 4px;
+                                                    white-space: nowrap;
+                                                    display: none;
+                                                    z-index: 12;">
+                                                    <br/>
+                                                    <a href="${exampleLink}" target="_blank" style="
+                                                        color: #1e90ff;
+                                                        text-decoration: underline;
+                                                        cursor: pointer;">
+                                                        View Details
+                                                    </a>
+                                                </span>
+                                            </div>`
+                                        : ""}
                                         ${this.value}
                                     </div>
+                                    <style>
+                                        .notification-wrapper:hover .notification-tooltip {
+                                            display: block !important;
+                                        }
+                                        .notification-wrapper {
+                                            min-width: 20px;
+                                            min-height: 60px;
+                                        }
+                                        .notification-circle:after {
+                                            content: '';
+                                            position: absolute;
+                                            top: -50px;
+                                            left: 50%;
+                                            transform: translateX(-50%);
+                                            width: 100px;
+                                            height: 60px;
+                                            z-index: 10;
+                                        }
+                                    </style>
                                 `;
-                            }
-                        }
-                    }
+                            },
+                        },
+                    },
                 },
                 true,
                 true,
@@ -380,34 +437,11 @@ const LineChart = () => {
                         }}>
                             <thead>
                                 <tr>
-                                    <th
-                                        style={{
-                                            position: "sticky",
-                                            left: 0,
-                                            backgroundColor: "#fff",
-                                            zIndex: 10,
-                                            padding: "8px",
-                                            textAlign: "left",
-                                            fontWeight: "bold",
-                                            fontSize: "14px",
-                                            color: "#333",
-                                            borderRight: "1px solid #ddd"
-                                        }}
-                                    >
+                                    <th style={{ position: "sticky", left: 0, backgroundColor: "#fff", zIndex: 10, padding: "8px", textAlign: "left", fontWeight: "bold", fontSize: "14px", color: "#333", borderRight: "1px solid #ddd" }}>
                                         METRICS
                                     </th>
                                     {currentData.dates.map((date) => (
-                                        <th
-                                            key={date}
-                                            style={{
-                                                padding: "8px",
-                                                textAlign: "right",
-                                                fontWeight: "normal",
-                                                fontSize: "12px",
-                                                color: "#666",
-                                                borderBottom: "1px solid #ddd",
-                                            }}
-                                        >
+                                        <th key={date} style={{ padding: "8px", textAlign: "right", fontWeight: "normal", fontSize: "12px", color: "#666", borderBottom: "1px solid #ddd" }}>
                                             {date}
                                         </th>
                                     ))}
@@ -418,19 +452,7 @@ const LineChart = () => {
                                     if (!visibleSeries[series.key]) return null;
                                     return (
                                         <tr key={series.name}>
-                                            <td
-                                                style={{
-                                                    position: "sticky",
-                                                    left: 0,
-                                                    backgroundColor: "#fff",
-                                                    zIndex: 9,
-                                                    padding: "8px",
-                                                    fontSize: "12px",
-                                                    color: "#333",
-                                                    borderBottom: "1px solid #f0f0f0",
-                                                    borderRight: "1px solid #ddd"
-                                                }}
-                                            >
+                                            <td style={{ position: "sticky", left: 0, backgroundColor: "#fff", zIndex: 9, padding: "8px", fontSize: "12px", color: "#333", borderBottom: "1px solid #f0f0f0", borderRight: "1px solid #ddd" }}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: "10px", justifyContent: "space-between" }}>
                                                     <span>{series.name}</span>
                                                     <div style={{ width: "150px", height: "30px" }}>
@@ -441,77 +463,26 @@ const LineChart = () => {
                                                 </div>
                                             </td>
                                             {currentData[series.key].map((value, index) => (
-                                                <td
-                                                    key={index}
-                                                    style={{
-                                                        padding: "8px",
-                                                        textAlign: "right",
-                                                        fontSize: "12px",
-                                                        color: "#333",
-                                                        borderBottom: "1px solid #f0f0f0",
-                                                    }}
-                                                >
+                                                <td key={index} style={{ padding: "8px", textAlign: "right", fontSize: "12px", color: "#333", borderBottom: "1px solid #f0f0f0" }}>
                                                     {series.format(value)}
                                                 </td>
                                             ))}
                                         </tr>
-                                    );
+                                    )
                                 })}
                             </tbody>
                         </table>
                     </div>
                 </div>
-                <div
-                    style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: "15px",
-                        justifyContent: "center",
-                        marginTop: "20px",
-                    }}
-                >
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "15px", justifyContent: "center", marginTop: "20px" }}>
                     {seriesMetadata.map((series) => (
-                        <div
-                            key={series.key}
-                            onClick={() => toggleSeries(series.key)}
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                cursor: "pointer",
-                                position: "relative",
-                                paddingBottom: "4px",
-                            }}
-                        >
-                            <span
-                                style={{
-                                    display: "inline-block",
-                                    width: "10px",
-                                    height: "10px",
-                                    borderRadius: "50%",
-                                    backgroundColor: series.color,
-                                    marginRight: "5px",
-                                }}
-                            />
-                            <span
-                                style={{
-                                    fontSize: "12px",
-                                    color: visibleSeries[series.key] ? "#000" : "#666",
-                                    fontWeight: visibleSeries[series.key] ? "bold" : "normal",
-                                }}
-                            >
+                        <div key={series.key} onClick={() => toggleSeries(series.key)} style={{ display: "flex", alignItems: "center", cursor: "pointer", position: "relative", paddingBottom: "4px" }}>
+                            <span style={{ display: "inline-block", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: series.color, marginRight: "5px" }} />
+                            <span style={{ fontSize: "12px", color: visibleSeries[series.key] ? "#000" : "#666", fontWeight: visibleSeries[series.key] ? "bold" : "normal" }}>
                                 {series.name}
                             </span>
                             {visibleSeries[series.key] && (
-                                <div
-                                    style={{
-                                        position: "absolute",
-                                        bottom: "0",
-                                        left: "0",
-                                        width: "100%",
-                                        height: "2px",
-                                        backgroundColor: series.color,
-                                    }}
-                                />
+                                <div style={{ position: "absolute", bottom: "0", left: "0", width: "100%", height: "2px", backgroundColor: series.color }} />
                             )}
                         </div>
                     ))}
@@ -527,181 +498,43 @@ const LineChart = () => {
                     <p style={{ fontSize: "16px", fontWeight: "bold", color: "#333", margin: 0 }}>Charts</p>
                 </div>
                 <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                    <p
-                        onClick={() => setShowTable(!showTable)}
-                        onMouseEnter={() => setIsHovered(true)}
-                        onMouseLeave={() => setIsHovered(false)}
-                        style={{
-                            padding: "5px 10px",
-                            color: "#1a73e8",
-                            border: "none",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            display: "inline-block",
-                            textDecoration: isHovered ? "underline" : "none",
-                            textUnderlineOffset: "3px",
-                            margin: 0,
-                            fontSize: "14px",
-                            fontWeight: 500,
-                            transition: "text-decoration 0.2s ease"
-                        }}
-                    >
+                    <p onClick={() => setShowTable(!showTable)} onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)} style={{ padding: "5px 10px", color: "#1a73e8", border: "none", borderRadius: "4px", cursor: "pointer", display: "inline-block", textDecoration: isHovered ? "underline" : "none", textUnderlineOffset: "3px", margin: 0, fontSize: "14px", fontWeight: 500, transition: "text-decoration 0.2s ease" }}>
                         {showTable ? "Show Chart" : "View as table"}
                     </p>
-                    <select
-                        value={view}
-                        onChange={(e) => setView(e.target.value)}
-                        style={{
-                            padding: "5px 20px 5px 10px",
-                            fontSize: "14px",
-                            color: "#333",
-                            border: "1px solid #ccc",
-                            borderRadius: "4px",
-                            backgroundColor: "#fff",
-                            cursor: "pointer",
-                            appearance: "none",
-                            backgroundImage: "url('data:image/svg+xml;utf8,<svg fill=\"black\" height=\"24\" viewBox=\"0 0 24 24\" width=\"24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M7 10l5 5 5-5z\"/></svg>')",
-                            backgroundRepeat: "no-repeat",
-                            backgroundPosition: "right 5px center",
-                            backgroundSize: "16px",
-                        }}
-                    >
+                    <select value={view} onChange={(e) => setView(e.target.value)} style={{ padding: "5px 20px 5px 10px", fontSize: "14px", color: "#333", border: "1px solid #ccc", borderRadius: "4px", backgroundColor: "#fff", cursor: "pointer", appearance: "none", backgroundImage: "url('data:image/svg+xml;utf8,<svg fill=\"black\" height=\"24\" viewBox=\"0 0 24 24\" width=\"24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M7 10l5 5 5-5z\"/></svg>')", backgroundRepeat: "no-repeat", backgroundPosition: "right 5px center", backgroundSize: "16px" }}>
                         <option value="Daily">Daily</option>
                         <option value="Weekly">Weekly</option>
                     </select>
-                    <div style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        fontFamily: "Arial, sans-serif"
-                    }}>
-                        <button
-                            onClick={() => setShowDataLabels(!showDataLabels)}
-                            style={{
-                                position: "relative",
-                                width: "50px",
-                                height: "26px",
-                                borderRadius: "13px",
-                                border: "1px solid #ccc",
-                                backgroundColor: showDataLabels ? "#868a8d" : "#fff",
-                                cursor: "pointer",
-                                padding: "0",
-                                outline: "none",
-                                transition: "all 0.3s ease",
-                                boxShadow: "inset 0 1px 3px rgba(0,0,0,0.1)"
-                            }}
-                        >
-                            <div style={{
-                                position: "absolute",
-                                top: "3px",
-                                left: showDataLabels ? "calc(100% - 23px)" : "3px",
-                                width: "20px",
-                                height: "20px",
-                                borderRadius: "50%",
-                                backgroundColor: showDataLabels ? "#fff" : "#ccc",
-                                transition: "all 0.3s ease",
-                                boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
-                            }} />
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", fontFamily: "Arial, sans-serif" }}>
+                        <button onClick={() => setShowDataLabels(!showDataLabels)} style={{ position: "relative", width: "50px", height: "26px", borderRadius: "13px", border: "1px solid #ccc", backgroundColor: showDataLabels ? "#868a8d" : "#fff", cursor: "pointer", padding: "0", outline: "none", transition: "all 0.3s ease", boxShadow: "inset 0 1px 3px rgba(0,0,0,0.1)" }}>
+                            <div style={{ position: "absolute", top: "3px", left: showDataLabels ? "calc(100% - 23px)" : "3px", width: "20px", height: "20px", borderRadius: "50%", backgroundColor: showDataLabels ? "#fff" : "#ccc", transition: "all 0.3s ease", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
                         </button>
-                        <span style={{
-                            fontSize: "14px",
-                            fontWeight: "bold",
-                            color: "#333",
-                            minWidth: "30px",
-                            textAlign: "center"
-                        }}>
+                        <span style={{ fontSize: "14px", fontWeight: "bold", color: "#333", minWidth: "30px", textAlign: "center" }}>
                             Data Labels
                         </span>
                     </div>
-                    <div style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        fontFamily: "Arial, sans-serif"
-                    }}>
-                        <button
-                            onClick={() => setToggle(prev => !prev)}
-                            style={{
-                                position: "relative",
-                                width: "50px",
-                                height: "26px",
-                                borderRadius: "13px",
-                                border: "1px solid #ccc",
-                                backgroundColor: toggle ? "#868a8d" : "#fff",
-                                cursor: "pointer",
-                                padding: "0",
-                                outline: "none",
-                                transition: "all 0.3s ease",
-                                boxShadow: "inset 0 1px 3px rgba(0,0,0,0.1)"
-                            }}
-                        >
-                            <div style={{
-                                position: "absolute",
-                                top: "3px",
-                                left: toggle ? "calc(100% - 23px)" : "3px",
-                                width: "20px",
-                                height: "20px",
-                                borderRadius: "50%",
-                                backgroundColor: toggle ? "#fff" : "#ccc",
-                                transition: "all 0.3s ease",
-                                boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
-                            }} />
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", fontFamily: "Arial, sans-serif" }}>
+                        <button onClick={() => setToggle(prev => !prev)} style={{ position: "relative", width: "50px", height: "26px", borderRadius: "13px", border: "1px solid #ccc", backgroundColor: toggle ? "#868a8d" : "#fff", cursor: "pointer", padding: "0", outline: "none", transition: "all 0.3s ease", boxShadow: "inset 0 1px 3px rgba(0,0,0,0.1)" }}>
+                            <div style={{ position: "absolute", top: "3px", left: toggle ? "calc(100% - 23px)" : "3px", width: "20px", height: "20px", borderRadius: "50%", backgroundColor: toggle ? "#fff" : "#ccc", transition: "all 0.3s ease", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
                         </button>
-                        <span style={{
-                            fontSize: "14px",
-                            fontWeight: "bold",
-                            color: "#333",
-                            minWidth: "30px",
-                            textAlign: "center"
-                        }}>
+                        <span style={{ fontSize: "14px", fontWeight: "bold", color: "#333", minWidth: "30px", textAlign: "center" }}>
                             View Changes
                         </span>
-                        <button
-                            onClick={() => setIsExpanded(!isExpanded)}
-                            style={{
-                                padding: "5px",
-                                backgroundColor: "#fff",
-                                color: "#333",
-                                border: "1px solid #ccc",
-                                borderRadius: "4px",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                            }}
-                            title={isExpanded ? "Shrink Chart" : "Expand Chart"}
-                        >
+                        <button onClick={() => setIsExpanded(!isExpanded)} style={{ padding: "5px", backgroundColor: "#fff", color: "#333", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} title={isExpanded ? "Shrink Chart" : "Expand Chart"}>
                             <FaExpandAlt size={16} />
                         </button>
-                        {/* Download Button */}
-                        <button
-                            onClick={exportToExcel}
-                            style={{
-                                padding: "5px",
-                                backgroundColor: "#fff",
-                                color: "#333",
-                                border: "1px solid #ccc",
-                                borderRadius: "4px",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                            }}
-                            title="Download as Excel"
-                        >
+                        <button onClick={exportToExcel} style={{ padding: "5px", backgroundColor: "#fff", color: "#333", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} title="Download as Excel">
                             <FaDownload size={16} />
                         </button>
                     </div>
                 </div>
             </div>
-            {
-                showTable ? (
-                    <DataTable />
-                ) : (
-                    <HighchartsReact highcharts={Highcharts} options={options} ref={chartRef} />
-                )
-            }
-        </div >
+            {showTable ? (
+                <DataTable />
+            ) : (
+                <HighchartsReact highcharts={Highcharts} options={options} ref={chartRef} />
+            )}
+        </div>
     );
 };
 
