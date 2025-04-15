@@ -146,6 +146,7 @@ const LineChart = () => {
             style: {
                 zIndex: 9999,
             },
+            snap: 10, // Only show tooltip when cursor is within 10 pixels of a data point
         },
         legend: {
             layout: "horizontal",
@@ -157,6 +158,7 @@ const LineChart = () => {
         },
         plotOptions: {
             series: {
+                stickyTracking: false, // Prevents tooltip from sticking to the line between points
                 animation: {
                     duration: 3000,
                     easing: "easeOutBounce",
@@ -294,6 +296,7 @@ const LineChart = () => {
                             dataLabels: {
                                 enabled: showDataLabels,
                             },
+                            stickyTracking: false, // Ensure this is updated dynamically
                         },
                     },
                     tooltip: {
@@ -302,6 +305,7 @@ const LineChart = () => {
                         style: {
                             zIndex: 9999,
                         },
+                        snap: 10, // Only show tooltip near data points
                     },
                     xAxis: {
                         labels: {
@@ -342,7 +346,7 @@ const LineChart = () => {
                                                     position: absolute;
                                                     top: -40px;
                                                     left: 50%;
-                                                    transform: translateX(-10%);
+                                                    transform: translateX(-50%);
                                                     background-color: #333;
                                                     color: white;
                                                     font-size: 12px;
@@ -351,6 +355,7 @@ const LineChart = () => {
                                                     white-space: nowrap;
                                                     display: none;
                                                     z-index: 12;">
+                                                    Spend: $${tooltipData}
                                                     <br/>
                                                     <a href="${exampleLink}" target="_blank" style="
                                                         color: #1e90ff;
@@ -468,7 +473,7 @@ const LineChart = () => {
                                                 </td>
                                             ))}
                                         </tr>
-                                    )
+                                    );
                                 })}
                             </tbody>
                         </table>
